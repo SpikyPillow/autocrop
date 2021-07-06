@@ -19,9 +19,6 @@ serde = { version = "1.0", features = ["derive"] }
 native-dialog = "0.5.5" # native-dialog for folder opening / notifications
 image = "0.23.14" # image manupulation
 
-# configuration saving and the like
-platform-dirs = "0.3"
-
 [features]
 default = []
 # http = ["eframe/http"] # Enable if you want to do http requests
