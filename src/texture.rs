@@ -1,7 +1,15 @@
-use std::{cmp::Ordering, path::PathBuf, sync::mpsc::{self, Receiver, Sender}, thread};
+use std::{
+    cmp::Ordering,
+    path::PathBuf,
+    sync::mpsc::{self, Receiver, Sender},
+    thread,
+};
 
-use eframe::{egui::{Color32, TextureId}, epi};
-use image::{DynamicImage, GenericImageView, imageops};
+use eframe::{
+    egui::{Color32, TextureId},
+    epi,
+};
+use image::{imageops, DynamicImage, GenericImageView};
 
 use crate::app::{PREVEW_IMAGE_LIMIT, PREVIEW_IMAGE_HEIGHT, PREVIEW_IMAGE_WIDTH};
 
@@ -15,7 +23,11 @@ pub struct TextureManager {
 
 impl TextureManager {
     /// Called only explicitly when the texture lists have changed, is in charge of spawning the new thread to open images.
-    pub fn reload_textures (&mut self, alloc: &mut dyn epi::TextureAllocator, sender: Sender<DynamicImage>) {
+    pub fn reload_textures(
+        &mut self,
+        alloc: &mut dyn epi::TextureAllocator,
+        sender: Sender<DynamicImage>,
+    ) {
         // make sure to remove the textures first
         for tex in &self.textures {
             alloc.free(tex.id);
@@ -31,23 +43,29 @@ impl TextureManager {
             }
         });
     }
-    
+
     /// Called explicitly when looking for new textures from the other thread to add.
     /// Returns true if the transmitter is still alive.
-    pub fn update_textures (&mut self, alloc: &mut dyn epi::TextureAllocator, rx: &mut Receiver<DynamicImage>) -> bool {
+    pub fn update_textures(
+        &mut self,
+        alloc: &mut dyn epi::TextureAllocator,
+        rx: &mut Receiver<DynamicImage>,
+    ) -> bool {
         // loads 3 images of backup at once per frame, or if theres none it continues the frame as normal
         for (num, image) in rx.try_iter().enumerate() {
             self.load_texture(alloc, image);
-            if num == 1 { break; }
+            if num == 1 {
+                break;
+            }
         }
         match rx.try_recv() {
-            Ok(image) => { 
+            Ok(image) => {
                 self.load_texture(alloc, image);
 
                 true
-            },
+            }
             Err(mpsc::TryRecvError::Disconnected) => false,
-            _ => true
+            _ => true,
         }
     }
 
@@ -56,10 +74,9 @@ impl TextureManager {
     fn load_texture(&mut self, alloc: &mut dyn epi::TextureAllocator, image: DynamicImage) {
         let (width, height);
         // hard limit of previews for ram
-        if self.textures.len() <= PREVEW_IMAGE_LIMIT { 
+        if self.textures.len() <= PREVEW_IMAGE_LIMIT {
             let id = {
-                let img = TextureManager::preview_resize(&image)
-                    .into_rgba8();
+                let img = TextureManager::preview_resize(&image).into_rgba8();
                 width = img.width() as usize;
                 height = img.height() as usize;
                 if width > 300 || height > 250 {
@@ -69,10 +86,10 @@ impl TextureManager {
                     Color32::from_rgba_premultiplied(pixel.0[0], pixel.0[1], pixel.0[2], pixel.0[3])
                 });
                 let pixels: Vec<_> = pixels.collect();
-    
+
                 alloc.alloc_srgba_premultiplied((width, height), &pixels)
             };
-    
+
             let tex = Texture::new(id, width, height);
             self.textures.push(tex);
         }
@@ -85,11 +102,11 @@ impl TextureManager {
             Ordering::Less => {
                 // width less than height, resize off height
                 image.resize(u32::MAX, PREVIEW_IMAGE_HEIGHT as u32, imageops::Nearest)
-            },
+            }
             Ordering::Greater | Ordering::Equal => {
                 // height less than width, resize off width
                 image.resize(PREVIEW_IMAGE_WIDTH as u32, u32::MAX, imageops::Nearest)
-            },
+            }
         }
     }
 }
@@ -102,11 +119,7 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn new (id: TextureId, width: usize, height: usize) -> Self {
-        Texture {
-            id,
-            width,
-            height,
-        }
+    pub fn new(id: TextureId, width: usize, height: usize) -> Self {
+        Texture { id, width, height }
     }
 }

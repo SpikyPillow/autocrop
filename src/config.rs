@@ -1,5 +1,5 @@
-use std::{path::{PathBuf}};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(default)] // makes new values default when deserializing old state
@@ -17,7 +17,7 @@ pub struct Config {
 }
 
 /// Using a "filename" struct so that i can keep the name stored in cache all the time
-#[derive(Debug, Serialize, Deserialize)] 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FileName {
     pub name_type: NameType,
     pub name: String,
@@ -36,9 +36,8 @@ impl Default for FileName {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum NameType {
     Original,
-    Custom
+    Custom,
 }
-
 
 impl Default for NameType {
     fn default() -> Self {
@@ -50,14 +49,14 @@ impl NameType {
     pub fn name(&self) -> &str {
         match self {
             NameType::Original => "Original Name",
-            NameType::Custom   => "Custom Name",
+            NameType::Custom => "Custom Name",
         }
     }
 
     pub fn tooltip(&self) -> &str {
         match self {
             NameType::Original => "Use the original input file's name.",
-            NameType::Custom   => "Use a user supplied file name.",
+            NameType::Custom => "Use a user supplied file name.",
         }
     }
 }
@@ -80,7 +79,7 @@ impl CropType {
     pub fn name(&self) -> &str {
         match self {
             CropType::Rectangle => "Rectangle",
-            CropType::Exact     => "Exact Difference",
+            CropType::Exact => "Exact Difference",
         }
     }
 
@@ -88,7 +87,7 @@ impl CropType {
     pub fn tooltip(&self) -> &str {
         match self {
             CropType::Rectangle => "Crops out same space in\nall but the background image.",
-            CropType::Exact     => "Cuts out exact pixels.\nSlower, but snaller. Recommended.",
+            CropType::Exact => "Cuts out exact pixels.\nSlower, but snaller. Recommended.",
         }
     }
 }

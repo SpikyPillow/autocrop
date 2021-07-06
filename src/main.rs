@@ -17,6 +17,6 @@ fn main() {
         minimum_window_size: Some(Vec2::new(375.0, 535.0)),
         ..eframe::NativeOptions::default()
     };
-    
+
     eframe::run_native(Box::new(app), native_options);
 }
