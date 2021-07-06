@@ -31,8 +31,6 @@ const DEFAULT_PREVIEW_HEIGHT: f32 = 200.0;
 const LOWER_PANEL_HEIGHT: f32 = 75.0;
 /// the lower panel height to adjust for to make the scrollbar not appear longer than it should.
 const SCROLLBAR_ADJUST: f32 = 35.0;
-/// minimum width of the program before things go bonkers
-const MINIMUM_UI_WIDTH: f32 = 342.0;
 
 #[derive(Default)]
 pub struct AutocropApp {
@@ -202,8 +200,6 @@ impl epi::App for AutocropApp {
                     ui.heading("rui's super cool auto crop tool");
                     ui.add_space(15.0);
                 });
-
-                ui.set_min_width(MINIMUM_UI_WIDTH);
 
                 // combo box and checkbox.
                 // centering is stupid, just stop thinking about it
