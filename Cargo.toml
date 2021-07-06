@@ -1,7 +1,7 @@
 [package]
-name = "egui_template"
-version = "0.1.0"
-authors = ["Emil Ernerfeldt <emilernerfeldt@gmail.com>"]
+name = "autocrop"
+version = "0.2.0"
+authors = ["Spiky Pillow"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -10,22 +10,32 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-eframe = "0.12.0" # Gives us egui, epi and web+native backends
+# Gives us egui, epi and web+native backends
+# I'm using a version with my own bugfix, this will probably bite me later
+eframe = { version = "0.13.1", path = "../egui/eframe", features = ["persistence"] }
 
-serde = { version = "1", features = ["derive"], optional = true }
+serde = { version = "1.0", features = ["derive"] }
+
+native-dialog = "0.5.5" # native-dialog for folder opening / notifications
+image = "0.23.14" # image manupulation
+
+# configuration saving and the like
+platform-dirs = "0.3"
 
 [features]
 default = []
-http = ["eframe/http"] # Enable if you want to do http requests
-persistence = ["eframe/persistence", "serde"] # Enable if you want to persist app state on shutdown
+# http = ["eframe/http"] # Enable if you want to do http requests
+persistance = ["eframe/persistence"] # Enable if you want to persist app state on shutdown
+# serde = []
+
+# image crate is slow
+[profile.dev.package.image]
+opt-level = 3
+[profile.dev.package.png]
+opt-level = 3
+[profile.dev.package.deflate]
+opt-level = 3
 
 [profile.release]
-opt-level = 2 # fast and small wasm
-
-[patch.crates-io]
-
-# If you want to use the bleeding edge version of `egui`:
-# eframe = { git = "https://github.com/emilk/egui", branch = "master" }
-
-# If you fork https://github.com/emilk/egui you can test with:
-# eframe = { path = "../egui/eframe" }
+#opt-level = 2 # fast and small wasm
+opt-level = 3
