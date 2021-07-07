@@ -5,6 +5,7 @@
 mod app;
 mod config;
 mod texture;
+mod ui;
 
 pub use app::AutocropApp;
 use image::ImageBuffer;

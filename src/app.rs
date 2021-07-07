@@ -5,17 +5,16 @@ use std::{
 };
 
 use eframe::{
-    egui::{self, Align, NumExt, TextStyle},
+    egui::{self, Align, NumExt},
     epi,
 };
 use image::DynamicImage;
 use native_dialog::{FileDialog, MessageDialog, MessageType};
 
 use crate::config::Config;
-use crate::{
-    config::{CropType, NameType},
-    texture::TextureManager,
-};
+use crate::texture::TextureManager;
+// auto crop user interface
+use crate::ui as acui;
 
 /// crate version, for the display on the bottom right
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -26,11 +25,11 @@ pub const PREVIEW_IMAGE_WIDTH: f32 = 300.0;
 /// max amount of preview images before program stops generating previews to save ram
 pub const PREVEW_IMAGE_LIMIT: usize = 1000;
 /// the minimum height for the previewer ui itself
-const DEFAULT_PREVIEW_HEIGHT: f32 = 200.0;
+pub const DEFAULT_PREVIEW_HEIGHT: f32 = 200.0;
 /// the fake "lower panel" (crop button) height. hard coded because pain.
-const LOWER_PANEL_HEIGHT: f32 = 75.0;
+pub const LOWER_PANEL_HEIGHT: f32 = 75.0;
 /// the lower panel height to adjust for to make the scrollbar not appear longer than it should.
-const SCROLLBAR_ADJUST: f32 = 35.0;
+pub const SCROLLBAR_ADJUST: f32 = 35.0;
 
 #[derive(Default)]
 pub struct AutocropApp {
@@ -41,10 +40,7 @@ pub struct AutocropApp {
 
 impl AutocropApp {
     pub fn new() -> Self {
-        Self {
-            // config: Config::new(), // i found out egui has its own thing for saving stuff, so default is fine
-            ..Self::default()
-        }
+        Self::default()
     }
 
     /// Opens a directory and mutates the pathbuf to contain it
@@ -175,160 +171,69 @@ impl epi::App for AutocropApp {
             config,
         } = self;
 
-        // Everything takes place on a scrollable central panel
+        // Most the ui takes place on a scrollable central panel
         // this is mostly for legacy reasons, but, also because it is technically possible
         // for the output directory text to expand the content past the minimum window height
         egui::CentralPanel::default().show(ctx, |ui| {
-            // scroll area's do not disable scrolling on ui disable, despite the scroll bar being useless, 
+            // scroll area's do not disable scrolling on ui disable, despite the scroll bar being useless,
             // so disable scrolling manually on each one when ui isnt enabled
-            // also scrollbar adjust for the bottom panel
+            // also size adjustment for the bottom panel (otherwise the scrollbar takes up the whole space)
             egui::ScrollArea::from_max_height(ui.clip_rect().height() - SCROLLBAR_ADJUST)
-            .enable_scrolling(ui.enabled()).show(ui, |ui| {
-                // Disable all widgets while loading new images in.
-                if reciever.is_some() {
-                    let cont = tex_manager.update_textures(frame.tex_allocator(), reciever.as_mut().unwrap());
-                    if cont {
-                        ctx.request_repaint(); // while loading textures request repaint?
-                        ui.set_enabled(false);
-                    } else {
-                        *reciever = None;
-                    }
-                }
-
-                // title is centered
-                ui.vertical_centered(|ui| {
-                    ui.heading("rui's super cool auto crop tool");
-                    ui.add_space(15.0);
-                });
-
-                // combo box and checkbox.
-                // centering is stupid, just stop thinking about it
-                ui.horizontal(|ui| {
-                    ui.add_space(28.0);
-                    egui::ComboBox::from_label("Crop Type")
-                    .selected_text(config.crop_type.name())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut config.crop_type, CropType::Rectangle, CropType::Rectangle.name())
-                            .on_hover_text(CropType::Rectangle.tooltip());
-                        ui.selectable_value(&mut config.crop_type, CropType::Exact, CropType::Exact.name())
-                            .on_hover_text(CropType::Exact.tooltip());
-                    });
-                    ui.add_space(ui.available_width()-118.0);
-                    ui.checkbox(&mut config.resize_output, "resize output")
-                    .on_hover_text("When false, cropped out space\nis replaced with empty pixels.");
-                });
-
-                // leniency slider "centered" through the use "on the fly" slider styling and horizontal spacing
-                // it is extra padded this way so that the value text box used on the slider doesn't expand the width of the program when clicked
-                // egui is pain
-                ui.scope(|ui| {
-                    let spacing = 28.0;
-                    ui.style_mut().spacing.slider_width = ui.available_width()-100.0- spacing*2.0;
-                    ui.horizontal(|ui| {
-                        ui.add_space(spacing);
-                        ui.add(egui::Slider::new(&mut config.leniency, 0.0..=99.9)
-                            .text("leniency")
-                            .clamp_to_range(true)
-                            .fixed_decimals(1)
-                        ).on_hover_text("None means any difference will be saved.\nLossless formats should probably be 0, lossy should be kept very low.");
-                        ui.add_space(10.0);
-                    });
-                });
-
-                // output directory & browse button on the left and right done through columnss
-                ui.columns(2, |columns| {
-                    columns[0].heading("output directory");
-                    columns[1].with_layout(egui::Layout::top_down(Align::Max), |ui| {
-                        if ui.button("Browse").clicked() {
-                            AutocropApp::open_directory(&mut config.output_path);
+                .enable_scrolling(ui.enabled())
+                .show(ui, |ui| {
+                    // Disable all widgets while loading new images in.
+                    if reciever.is_some() {
+                        let cont = tex_manager
+                            .update_textures(frame.tex_allocator(), reciever.as_mut().unwrap());
+                        if cont {
+                            ctx.request_repaint(); // while loading textures request repaint?
+                            ui.set_enabled(false);
+                        } else {
+                            *reciever = None;
                         }
-                    });
-                });
-                ui.add_space(5.0);
+                    }
 
-                // scrollable output path in the case that you somehow feed it a path longer than ~4 lines
-                let scroll_area = egui::ScrollArea::from_max_height(60.0).enable_scrolling(ui.enabled()).id_source("output scroll");
-                scroll_area.show(ui, |ui| {
-                    ui.add_sized(
-                        [ui.available_width(), 25.0],
-                        egui::TextEdit::multiline(&mut config.output_path.to_string_lossy().to_string())
+                    // title is centered
+                    ui.vertical_centered(|ui| {
+                        ui.heading("rui's super cool auto crop tool");
+                    });
+                    ui.add_space(15.0);
+
+                    // crop type
+                    acui::croptype::draw_croptype_selector(ui, config);
+
+                    // leniency slider
+                    acui::leniency::draw_leniency_slider(ui, config);
+
+                    // output directory & browse button on the left and right done through columnss
+                    if acui::label_and_browse(ui, "output directory").clicked() {
+                        println!("uh oh");
+                        AutocropApp::open_directory(&mut config.output_path);
+                    }
+                    ui.add_space(5.0);
+
+                    // scrollable output path in the case that you somehow feed it a path longer than ~4 lines
+                    let scroll_area = egui::ScrollArea::from_max_height(60.0)
+                        .enable_scrolling(ui.enabled())
+                        .id_source("output scroll");
+                    scroll_area.show(ui, |ui| {
+                        ui.add_sized(
+                            [ui.available_width(), 25.0],
+                            egui::TextEdit::multiline(
+                                &mut config.output_path.to_string_lossy().to_string(),
+                            )
                             .desired_rows(1)
-                            .enabled(false)
-                    );
-                });
-
-                // file names
-                // todo: fix this stuff up
-                // yay magic width numbers because egui is pain
-                let combobox_width = 120.0;
-                let textbox_width = 200.0;
-                let min_clip_width = 687.0;
-                let padding = 16.5; // probably
-                let center_padding = (ui.clip_rect().width()/2.0-(combobox_width+textbox_width+padding)/2.0-3.0)
-                                    .at_least(0.0);
-                ui.horizontal(|ui|{
-                    if ui.clip_rect().width() < min_clip_width {
-                        ui.add_space(center_padding);
-                    }
-                    ui.style_mut().override_text_style = Some(TextStyle::Monospace);
-
-                    egui::ComboBox::from_id_source("bg_name")
-                    .selected_text(config.bg_name.name_type.name())
-                    .width(combobox_width)
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut config.bg_name.name_type, NameType::Original, NameType::Original.name())
-                            .on_hover_text(NameType::Original.tooltip());
-                        ui.selectable_value(&mut config.bg_name.name_type, NameType::Custom, NameType::Custom.name())
-                            .on_hover_text(NameType::Custom.tooltip());
-                        ui.label("test?");
+                            .enabled(false),
+                        );
                     });
-                    let textedit = egui::TextEdit::singleline(&mut config.bg_name.name)
-                                    .enabled(config.bg_name.name_type == NameType::Custom);
-                    ui.add_sized([textbox_width, 20.0], textedit)
-                    .on_hover_text(format!("{}.png", config.bg_name.name));
-                    // space between the two. yep, more magic width numbers.
-                    ui.add_space(ui.available_width()-textbox_width-combobox_width-padding);
-                    // ---
-                    if ui.clip_rect().width() >= min_clip_width {
-                        let textedit = egui::TextEdit::singleline(&mut config.file_name.name)
-                                       .enabled(config.file_name.name_type == NameType::Custom);
-                        ui.add_sized([textbox_width, 20.0], textedit)
-                            .on_hover_text(format!("{}123.png", config.file_name.name));
-                        egui::ComboBox::from_id_source("file_name")
-                        .selected_text(config.file_name.name_type.name())
-                        .width(combobox_width)
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut config.file_name.name_type, NameType::Original, NameType::Original.name())
-                                .on_hover_text(NameType::Original.tooltip());
-                            ui.selectable_value(&mut config.file_name.name_type, NameType::Custom, NameType::Custom.name())
-                                .on_hover_text(NameType::Custom.tooltip());
-                        });
-                    }
-                });
-                if ui.clip_rect().width() < min_clip_width {
-                    ui.horizontal(|ui| {
-                        ui.add_space(center_padding);
-                        egui::ComboBox::from_id_source("file_name")
-                        .selected_text(config.file_name.name_type.name())
-                        .width(combobox_width)
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut config.file_name.name_type, NameType::Original, NameType::Original.name())
-                                .on_hover_text(NameType::Original.tooltip());
-                            ui.selectable_value(&mut config.file_name.name_type, NameType::Custom, NameType::Custom.name())
-                                .on_hover_text(NameType::Custom.tooltip());
-                        });
-                        let textedit = egui::TextEdit::singleline(&mut config.file_name.name)
-                                        .enabled(config.file_name.name_type == NameType::Custom);
-                        ui.add_sized([textbox_width, 20.0], textedit)
-                            .on_hover_text(format!("{}123.png", config.file_name.name));
-                    });
-                }
-                ui.add_space(20.0);
 
-                // files selected and its browse button
-                ui.columns(2, |columns| {
-                    // if loading images change the text to say how many are loading
-                    let string = {
+                    // file names
+                    acui::filename::draw_filename_selector(ui, config);
+                    ui.add_space(20.0);
+
+                    // files selected and its browse button
+                    // if loading images change the text to say how many are loaded
+                    let label = {
                         let path_len = tex_manager.input_paths.len();
                         let image_len = tex_manager.images.len();
 
@@ -339,100 +244,33 @@ impl epi::App for AutocropApp {
                         }
                     };
 
-                    columns[0].heading(string);
-                    columns[1].with_layout(egui::Layout::top_down(Align::Max), |ui| {
-                        if ui.button("Browse").clicked() {
-                            let (tx, rx): (Sender<DynamicImage>, Receiver<DynamicImage>) = mpsc::channel();
-                            *reciever = Some(rx);
-                            AutocropApp::open_files(frame.tex_allocator(), tex_manager, tx, &mut config.input_path);
-                        }
-                    });
+                    if acui::label_and_browse(ui, label).clicked() {
+                        let (tx, rx): (Sender<DynamicImage>, Receiver<DynamicImage>) =
+                            mpsc::channel();
+                        *reciever = Some(rx);
+                        AutocropApp::open_files(
+                            frame.tex_allocator(),
+                            tex_manager,
+                            tx,
+                            &mut config.input_path,
+                        );
+                    }
+                    ui.add_space(5.0);
+
+                    // image previewer
+                    acui::previewer::draw_file_previewer(ui, tex_manager);
+
+                    // lower panel adjustment space, add space to move it to the bottom of the window (when its large enough)
+                    let mut add = ui.clip_rect().size().y - ui.min_size().y - LOWER_PANEL_HEIGHT;
+                    add = add.at_least(0.0);
+                    ui.add_space(10.0 + add);
+
+                    // crop button
+                    if acui::crop_button(ui, config, tex_manager).clicked() {
+                        // todo: handle this?
+                        crate::crop(&mut tex_manager.images, config).unwrap();
+                    }
                 });
-                ui.add_space(5.0);
-
-                // image previewer, this is the most complicated part
-                if tex_manager.textures.len() == 0 {
-                    // small placeholder text until images are avilable
-                    ui.vertical_centered(|ui| {
-                        ui.label("(images will appear here)");
-                    });
-                } else {
-                    // "add" is the space needed between here and the top of the crop bottom
-                    let add = (ui.clip_rect().size().y - ui.min_size().y - LOWER_PANEL_HEIGHT - DEFAULT_PREVIEW_HEIGHT)
-                        .at_least(0.0);
-                    egui::ScrollArea::from_max_height(DEFAULT_PREVIEW_HEIGHT+add)
-                    .enable_scrolling(ui.enabled()).show(ui, |ui| {
-                        // extra columns when theres enough width
-                        let mut columns = (ui.available_width() / tex_manager.textures[0].width as f32).floor() as usize;
-                        if tex_manager.textures.len() < columns {
-                            columns = tex_manager.textures.len();
-                        }
-                        columns = columns.at_least(3);
-
-                        egui::Grid::new("table")
-                            // max and min the same, always a third of the window, min required for height limit
-                            // no min row height so that they stack right on top of eachother when the window is minimized to small amounts
-                            .max_col_width(ui.available_width()/columns as f32-4.0)
-                            .min_col_width(ui.available_width()/columns as f32-4.0)
-                            .spacing(egui::Vec2::new(5.0,5.0))
-                            .show(ui, |ui| {
-                                let mut counter = 0;
-                                for tex in &tex_manager.textures {
-                                    if counter == columns {
-                                        counter = 0;
-                                        ui.end_row();
-                                    }
-                                    counter+=1;
-
-                                    // stuff to make sure it fits nice n snug but isnt too tall or wide
-                                    let ratio: f32 = tex.height as f32 / tex.width as f32;
-                                    let predicted_height = ui.available_width() * ratio;
-                                    if predicted_height > PREVIEW_IMAGE_HEIGHT {
-                                        ui.vertical_centered(|ui| {
-                                            ui.image(tex.id, egui::Vec2::new(PREVIEW_IMAGE_HEIGHT/ratio, PREVIEW_IMAGE_HEIGHT));
-                                        });
-                                    } else {
-                                        // fit to available space only if the width is larger than the available space, otherwise just do normal texture width
-                                        if ui.available_width() < tex.width as f32 {
-                                            ui.vertical_centered(|ui| {
-                                                ui.image(tex.id, egui::Vec2::new(ui.available_width(), predicted_height));
-                                            });
-                                        } else {
-                                            ui.vertical_centered(|ui| {
-                                                ui.image(tex.id, egui::Vec2::new(tex.width as f32, tex.height as f32));
-
-                                            });
-                                        }
-                                    }
-                                }
-                            });
-                        // if ui is disabled we're probably loading textures, scroll to bottom to preview the new ones as they come
-                        if !ui.enabled() {
-                            ui.scroll_to_cursor(Align::BOTTOM);
-                        }
-                    });
-                }
-
-                // lower panel adjustment space, add space to move it to the bottom of the window (when its large enough)
-                let mut add = ui.clip_rect().size().y - ui.min_size().y - LOWER_PANEL_HEIGHT;
-                add = add.at_least(0.0);
-                ui.add_space(10.0+add);
-
-                // crop button, justified fills left and right making the button big and shiny
-                // disabled until conditions are met
-                let crop_enabled =  !(tex_manager.input_paths.len() == 0 || config.output_path.as_os_str().is_empty());
-                ui.vertical_centered_justified(|ui| {
-                    let button =  egui::widgets::Button::new("Crop").enabled(crop_enabled);
-
-                    if ui.add_sized([0.0, 50.0], button)
-                        .on_disabled_hover_text("Missing output path or input images")
-                        .clicked() {
-                            // todo: handle this hah
-                            crate::crop(&mut tex_manager.images, config).unwrap();
-                        }
-                });
-
-            });
         });
 
         // bottom panel, displays debug build text (if in debug) + version number
