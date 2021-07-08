@@ -120,6 +120,7 @@ impl AutocropApp {
 
                 // actually load the textures
                 *input_path = paths[0].clone();
+                input_path.pop();
                 tex_manager.input_paths = paths;
                 tex_manager.reload_textures(alloc, sender);
             }
@@ -207,7 +208,6 @@ impl epi::App for AutocropApp {
 
                     // output directory & browse button on the left and right done through columnss
                     if acui::label_and_browse(ui, "output directory").clicked() {
-                        println!("uh oh");
                         AutocropApp::open_directory(&mut config.output_path);
                     }
                     ui.add_space(5.0);
