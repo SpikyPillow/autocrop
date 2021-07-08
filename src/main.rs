@@ -11,8 +11,8 @@ use eframe::egui::Vec2;
 fn main() {
     let app = autocrop::AutocropApp::new();
     let native_options = eframe::NativeOptions {
-        initial_window_size: Some(Vec2::new(500.0, 550.0)),
-        minimum_window_size: Some(Vec2::new(375.0, 535.0)),
+        initial_window_size: Some(Vec2::new(500.0, 600.0)),
+        minimum_window_size: Some(Vec2::new(375.0, 600.0)),
         ..eframe::NativeOptions::default()
     };
 
