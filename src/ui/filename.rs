@@ -1,10 +1,11 @@
-use eframe::egui::{self, Align, Response, TextStyle};
+use eframe::egui::{self, Align, Color32, Response, Stroke, TextStyle};
 
 use crate::config::{Config, NameType};
 
 const COMBOBOX_WIDTH: f32 = 120.0;
 const TEXTBOX_WIDTH: f32 = 200.0;
 
+/// background image file name combo box and edit box, or normal image file name combo box and edit box
 enum SelectorType {
     Background,
     Images,
@@ -55,10 +56,31 @@ fn selector(ui: &mut egui::Ui, config: &mut Config, seltype: SelectorType) -> Re
         .on_hover_text(hover_text)
 }
 
+/// function to draw the specific edit box
 fn edit_box(ui: &mut egui::Ui, config: &mut Config, seltype: SelectorType) -> Response {
     let nametype = seltype.name_type(config);
     let enabled = *nametype == NameType::Custom;
-    // name after ^ this line so that there are no borrow issues
+
+    // fighting the borrow checker
+    {
+        let name = seltype.name(config);
+
+        // this isn't perfect but honestly this is too much of a pain to do properly
+        // if you want better character support wait for the egui update with verticle "scrolling" text boxes
+        // todo: if that ever actually happens make this not lame
+        if name.chars().count() > 26 {
+            *name = name.chars().take(26).collect();
+        }
+    }
+
+    // technically this also blocks some non illegal names
+    // but it isn't worth making seperate functionality for both types of selectors
+    // todo: do it anyway
+    let illegal = match seltype {
+        SelectorType::Background => config.bg_name.is_illegal(),
+        SelectorType::Images => config.file_name.is_illegal(),
+    };
+
     let name = seltype.name(config);
 
     ui.scope(|ui| {
@@ -67,11 +89,42 @@ fn edit_box(ui: &mut egui::Ui, config: &mut Config, seltype: SelectorType) -> Re
         }
         ui.style_mut().override_text_style = Some(TextStyle::Monospace);
 
+        let red = Color32::from_rgb(255, 0, 0);
+        if illegal {
+            let stroke = Stroke::new(2.0, red);
+            ui.style_mut().visuals.widgets.inactive.fg_stroke = Stroke::new(5.0, red);
+            ui.style_mut().visuals.selection.stroke = stroke;
+            ui.style_mut().visuals.widgets.hovered.bg_stroke = stroke;
+            ui.style_mut().visuals.widgets.inactive.bg_stroke = stroke;
+        }
+
         let textedit = egui::TextEdit::singleline(name).enabled(enabled);
         let response = ui.add_sized([TEXTBOX_WIDTH, 20.0], textedit);
-        match seltype {
-            SelectorType::Background => response.on_hover_text(format!("{}.png", name)),
-            SelectorType::Images => response.on_hover_text(format!("{}123.png", name)),
+
+        // trim name on focus loss
+        if response.lost_focus() {
+            *name = name.trim().to_owned();
+        }
+
+        if illegal {
+            egui::containers::popup::show_tooltip_under(
+                &response.ctx,
+                egui::Id::new("interesting thing"),
+                &response.rect,
+                |ui| {
+                    ui.add(egui::widgets::Label::new("Invalid filename").text_color(red));
+                },
+            );
+
+            response
+        } else {
+            // this is seperate so that we can always display the trimmed name for the tooltip
+            let trim = name.trim().to_owned();
+
+            match seltype {
+                SelectorType::Background => response.on_hover_text(format!("{}.png", trim)),
+                SelectorType::Images => response.on_hover_text(format!("{}123.png", trim)),
+            }
         }
     })
     .inner

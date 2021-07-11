@@ -26,8 +26,10 @@ pub fn crop_button(
     tex_manager: &mut TextureManager,
 ) -> Response {
     // disabled until conditions are met
-    let crop_enabled =
-        !(tex_manager.input_paths.len() == 0 || config.output_path.as_os_str().is_empty());
+    let crop_enabled = !(tex_manager.input_paths.len() == 0
+        || config.output_path.as_os_str().is_empty()
+        || config.bg_name.is_illegal()
+        || config.file_name.is_illegal());
     // justified fills left and right making the button big and shiny
     ui.vertical_centered_justified(|ui| {
         let button = egui::widgets::Button::new("Crop").enabled(crop_enabled);

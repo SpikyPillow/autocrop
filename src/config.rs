@@ -32,6 +32,17 @@ impl Default for FileName {
     }
 }
 
+impl FileName {
+    /// Convenience function for checking if the filename feels safe to write to a file.
+    /// Uses [`autocrop::is_illegal`]
+    pub fn is_illegal(&self) -> bool {
+        match self.name_type {
+            NameType::Original => false,
+            NameType::Custom => crate::is_illegal(&self.name),
+        }
+    }
+}
+
 /// Enum that represents what the file output names should be.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum NameType {

@@ -192,6 +192,56 @@ fn difference(px1: Rgba<u8>, px2: Rgba<u8>) -> f64 {
     difference as f64 / 195075.0
 }
 
+/// Checks if the string contains any illegal filename characters (presently for windows).
+///
+/// It is not certain that this is a foolproof solution, you may still be able to create illegal filenames.
+/// This function is just meant to catch most possible issues.
+///
+/// # Note:
+/// This function may take up comparitively large computation time.
+// todo: Use something else for linux like systems that are less restricted
+pub fn is_illegal(s: &str) -> bool {
+    // empty or ending with spaces or dots are a no go
+    if s.len() == 0 {
+        return true;
+    }
+
+    for c in s.chars() {
+        // // non ascii is a pain so...
+        // if !c.is_ascii() {
+        //     return true;
+        // }
+
+        // scary illegal ascii bytes
+        if c as i32 >= 0 && c as i32 <= 31 {
+            return true;
+        }
+    }
+
+    // you cannot end with spaces or periods,
+    // but since i'm also adding an extension to the end anyway, no need.
+    // if s.ends_with(&[' ', '.'][..]) {
+    //     return true;
+    // }
+
+    // some illegal characters
+    if s.contains(&['<', '>', ':', '\"', '/', '\\', '|', '?', '*'][..]) {
+        return true;
+    }
+
+    // windows why
+    for cmp in [
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    ] {
+        if s.to_ascii_uppercase() == cmp {
+            return true;
+        }
+    }
+
+    false
+}
+
 // ----------------------------------------------------------------------------
 // When compiling for web:
 
