@@ -268,7 +268,7 @@ impl epi::App for AutocropApp {
                     // crop button
                     if acui::crop_button(ui, config, tex_manager).clicked() {
                         // todo: handle this?
-                        crate::crop(&mut tex_manager.images, config).unwrap();
+                        crate::crop(tex_manager, config).unwrap();
                     }
                 });
         });

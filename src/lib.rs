@@ -12,7 +12,9 @@ use image::ImageBuffer;
 use image::Rgba;
 
 use config::Config;
+use std::borrow::Cow;
 use std::error::Error;
+use texture::TextureManager;
 
 use image::DynamicImage;
 use image::GenericImageView;
@@ -82,7 +84,9 @@ impl RectangleRange {
     }
 }
 
-pub fn crop(images: &mut Vec<DynamicImage>, config: &Config) -> Result<(), Box<dyn Error>> {
+pub fn crop(tex_manager: &mut TextureManager, config: &Config) -> Result<(), Box<dyn Error>> {
+    let images = &mut tex_manager.images;
+
     println!("starting crop: figuring out range of area to work with");
     let bg = &images[0];
     let mut range = RectangleRange::new();
@@ -104,12 +108,11 @@ pub fn crop(images: &mut Vec<DynamicImage>, config: &Config) -> Result<(), Box<d
     }
     dbg!(&range);
 
-    // if exact croptype, figure out the exact different pixels per image now
-
     // first vec is for images, second is for groups of everydifferent pixel
     // does not contain the background image, since everything is compared against it
     let mut different_pixels: Vec<Vec<Pos2>> = vec![];
 
+    // if exact croptype, figure out the exact different pixels per image now
     if config.crop_type == CropType::Exact {
         // populate first vector per image
         for _ in images.iter().skip(1) {
@@ -129,6 +132,7 @@ pub fn crop(images: &mut Vec<DynamicImage>, config: &Config) -> Result<(), Box<d
         }
     }
 
+    // cropping here
     for (i, image) in images.iter_mut().enumerate() {
         // if first image (bg), return itself
         let img = if i == 0 {
@@ -173,8 +177,38 @@ pub fn crop(images: &mut Vec<DynamicImage>, config: &Config) -> Result<(), Box<d
             }
         };
 
+        // path to write to
         let mut path = config.output_path.clone();
-        path.push(format!("{}.png", i));
+        // name is cow type because im lazy
+        let bg_or_img_type = if i == 0 {
+            &config.bg_name
+        } else {
+            &config.file_name
+        };
+
+        // file name (without extension)
+        let name = {
+            let original_path = &tex_manager.input_paths[i];
+            match bg_or_img_type.name_type {
+                config::NameType::Original => original_path
+                    .file_stem()
+                    .unwrap_or(
+                        original_path
+                            .file_name()
+                            .ok_or("Could not retrieve original file name.")?,
+                    )
+                    .to_string_lossy(),
+                config::NameType::Custom => {
+                    if i == 0 {
+                        Cow::from(&config.bg_name.name)
+                    } else {
+                        Cow::from(format!("{}{}", &config.file_name.name, i))
+                    }
+                }
+            }
+        };
+
+        path.push(format!("{}.png", name));
         println!("saving image {}...", i);
         img.save_with_format(path, ImageFormat::Png)?;
     }

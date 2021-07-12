@@ -16,8 +16,12 @@ use crate::app::{PREVEW_IMAGE_LIMIT, PREVIEW_IMAGE_HEIGHT, PREVIEW_IMAGE_WIDTH};
 #[derive(Default)]
 /// Texture manager holds onto the images and image paths, and is also responsible for their loading.
 pub struct TextureManager {
+    /// Textures used by egui.
     pub textures: Vec<Texture>,
+    /// The cached image files, loaded in by the file selector.
     pub images: Vec<DynamicImage>,
+    /// The paths of each cached image file. Not gauranteed to be valid after loading.
+    /// Should update alongside `.images`.
     pub input_paths: Vec<PathBuf>,
 }
 
