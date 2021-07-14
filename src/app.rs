@@ -1,4 +1,5 @@
 use std::{
+    error::Error,
     path::PathBuf,
     str::FromStr,
     sync::mpsc::{self, Receiver, Sender},
@@ -43,6 +44,16 @@ impl AutocropApp {
         Self::default()
     }
 
+    /// Convenience function to error into a file dialogue instead of exploding everything
+    fn dialogue_error(e: Box<dyn Error>) {
+        MessageDialog::new()
+            .set_type(MessageType::Error)
+            .set_title("Error!")
+            .set_text(&format!("An error has occured: {}", e.to_string()))
+            .show_alert()
+            .unwrap();
+    }
+
     /// Opens a directory and mutates the pathbuf to contain it
     fn open_directory(output_path: &mut PathBuf) {
         let path = AutocropApp::path_or_desktop(output_path);
@@ -74,7 +85,7 @@ impl AutocropApp {
         tex_manager: &mut TextureManager,
         sender: Sender<DynamicImage>,
         input_path: &mut PathBuf,
-    ) {
+    ) -> Result<(), Box<dyn Error>> {
         let path = AutocropApp::path_or_desktop(input_path);
         let paths = FileDialog::new()
             .set_location(&path)
@@ -84,7 +95,7 @@ impl AutocropApp {
 
         // alert if they pick one image, silently return if they pick none (window closed?)
         match paths.len() {
-            0 => return,
+            0 => return Ok(()),
             1 => {
                 MessageDialog::new()
                     .set_type(MessageType::Info)
@@ -96,25 +107,17 @@ impl AutocropApp {
             2..=10000 => {
                 // check if images are the same resolution, if not return
                 let mut iter = paths.iter();
-                // todo: give user feedback when the readers fail..?
-                let (width, height) = image::io::Reader::open(iter.next().unwrap())
-                    .unwrap()
-                    .into_dimensions()
-                    .unwrap();
+                let (width, height) =
+                    image::io::Reader::open(iter.next().unwrap())?.into_dimensions()?;
                 for path in iter {
-                    if (width, height)
-                        != image::io::Reader::open(path)
-                            .unwrap()
-                            .into_dimensions()
-                            .unwrap()
-                    {
+                    if (width, height) != image::io::Reader::open(path)?.into_dimensions()? {
                         MessageDialog::new()
                             .set_type(MessageType::Info)
                             .set_title("Alert")
                             .set_text("Images must be the same resolution.")
                             .show_alert()
                             .unwrap();
-                        return;
+                        return Ok(());
                     }
                 }
 
@@ -133,6 +136,8 @@ impl AutocropApp {
                     .unwrap();
             }
         };
+
+        Ok(())
     }
 }
 
@@ -148,7 +153,7 @@ impl epi::App for AutocropApp {
         _frame: &mut epi::Frame<'_>,
         storage: Option<&dyn epi::Storage>,
     ) {
-        // todo? i'm not sure if its worth having a option around config so that it's only set once
+        // todo?: i'm not sure if its worth having a option around config so that it's only set once
         // if storage & config exist, set app's config to it. otherwise it should be the default value.
         if let Some(storage) = storage {
             if let Some(config) = epi::get_value(storage, "config") {
@@ -253,7 +258,8 @@ impl epi::App for AutocropApp {
                             tex_manager,
                             tx,
                             &mut config.input_path,
-                        );
+                        )
+                        .unwrap_or_else(AutocropApp::dialogue_error);
                     }
                     ui.add_space(5.0);
 
@@ -267,8 +273,46 @@ impl epi::App for AutocropApp {
 
                     // crop button
                     if acui::crop_button(ui, config, tex_manager).clicked() {
-                        // todo: handle this?
-                        crate::crop(tex_manager, config).unwrap();
+                        match crate::crop(tex_manager, config) {
+                            Ok(_) => {
+                                let confirm = MessageDialog::new()
+                                    .set_type(MessageType::Info)
+                                    .set_title("Crop complete!")
+                                    .set_text("Open output now?")
+                                    .show_confirm()
+                                    .unwrap();
+                                if confirm {
+                                    // i have no gaurantee that literally any of these work, if they don't, oh well.
+                                    // todo move to seperate function this is kinda ugly
+                                    use std::process::Command;
+                                    #[cfg(target_os = "windows")]
+                                    let _ = Command::new("explorer")
+                                        .arg(config.output_path.as_os_str())
+                                        .spawn();
+
+                                    #[cfg(target_os = "linux")]
+                                    let _ = Command::new("xdg-open")
+                                        .arg(config.output_path.as_os_str())
+                                        .spawn();
+
+                                    #[cfg(target_os = "macos")]
+                                    let _ = Command::new("open")
+                                        .arg(config.output_path.as_os_str())
+                                        .spawn();
+                                }
+                            }
+                            Err(e) => {
+                                MessageDialog::new()
+                                    .set_type(MessageType::Error)
+                                    .set_title("Error cropping files")
+                                    .set_text(&format!(
+                                        "An error has occured while trying to crop: {}",
+                                        e.to_string()
+                                    ))
+                                    .show_alert()
+                                    .unwrap();
+                            }
+                        }
                     }
                 });
         });
