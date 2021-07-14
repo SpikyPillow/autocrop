@@ -8,17 +8,21 @@ mod texture;
 mod ui;
 
 pub use app::AutocropApp;
+use image::ColorType;
 use image::ImageBuffer;
 use image::Rgba;
 
 use config::Config;
+use image::png::CompressionType;
+use image::png::FilterType;
+use image::png::PngEncoder;
 use std::borrow::Cow;
 use std::error::Error;
+use std::fs::File;
 use texture::TextureManager;
 
 use image::DynamicImage;
 use image::GenericImageView;
-use image::ImageFormat;
 
 // #[derive(Clone, Copy, Default, PartialEq)]
 // #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -210,7 +214,12 @@ pub fn crop(tex_manager: &mut TextureManager, config: &Config) -> Result<(), Box
 
         path.push(format!("{}.png", name));
         println!("saving image {}...", i);
-        img.save_with_format(path, ImageFormat::Png)?;
+        // compression (this doesn't do much, but doesn't seem to massively impact performance either)
+        let img = img.to_rgba8();
+        let buffer = File::create(path)?;
+        let encoder = PngEncoder::new_with_quality(buffer, CompressionType::Rle, FilterType::Paeth);
+        encoder.encode(&img, img.width(), img.height(), ColorType::Rgba8)?;
+        // img.save_with_format(path, ImageFormat::Png)?;
     }
 
     println!("done!");
