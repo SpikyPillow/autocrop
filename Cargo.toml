@@ -11,8 +11,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # Gives us egui, epi and web+native backends
-# I'm using a version with my own bugfix, this will probably bite me later
-eframe = { version = "0.13.1", path = "../egui/eframe", features = ["persistence"] }
+# I'm using a version with my own addition, this will probably bite me later
+eframe = { version = "0.13.1", git = "https://github.com/SpikyPillow/egui", features = ["persistence"] }
 
 serde = { version = "1.0", features = ["derive"] }
 
