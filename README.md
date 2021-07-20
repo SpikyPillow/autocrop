@@ -1,52 +1,31 @@
-# egui template
+<p align="center">
+    <img width="300" alt="Autocrop Logo" src="https://raw.githubusercontent.com/SpikyPillow/autocrop/master/image/autocrop.png">
+</p>
 
-[![dependency status](https://deps.rs/repo/github/emilk/egui_template/status.svg)](https://deps.rs/repo/github/emilk/egui_template)
-[![Build Status](https://github.com/emilk/egui_template/workflows/CI/badge.svg)](https://github.com/emilk/egui_template/actions?workflow=CI)
 
-This is a template repo for [egui](https://github.com/emilk/egui/).
+<h1 align="center">Rui's super cool auto crop tool</h1>
 
-The goal is for this to be the simplest way to get started writing a GUI app in Rust.
+<p align="center">
+  <img width="600"
+       src="https://raw.githubusercontent.com/SpikyPillow/autocrop/master/image/compare.png">
+</p>
 
-You can compile your app natively or for the web, and share it using Github Pages.
+## About
+This is the repo for rui's super cool auto crop tool! (R)autocrop for short!
 
-## Getting started
+Autocrop is a tool used to "crop out" the differences in similar images, the intent is it to be used for compression and data saving.
 
-Start by clicking "Use this template" at https://github.com/emilk/egui_template/ or follow [these instructions](https://docs.github.com/en/free-pro-team@latest/github/creating-cloning-and-archiving-repositories/creating-a-repository-from-a-template).
+Presently, Autocrop is in alpha stages of development, the version number isn't taken into consideration on code changes, 
+and the tool still has several bugs and features to be worked out. It is presently functional, just not yet ideal.
 
-`src/app.rs` contains a simple example app. This is just to give some inspiration - most of it can be removed if you like.
+### Testing locally 
 
-Make sure you are using the latest version of stable rust.
+Right now if you want to run the program you can compile from source:
 
-### Testing locally
+You will need rust installed, for instructions on how to do that see [here](https://doc.rust-lang.org/book/ch01-01-installation.html).
 
-`cargo run --release`
-
-On Linux you need to first run `sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev`.
-
-### Compiling for the web
-
-You can compile your app to [WASM](https://en.wikipedia.org/wiki/WebAssembly) and publish it as a web page. For this you need to set up some tools. There are a few simple scripts that help you with this:
-
-``` sh
-./setup_web.sh
-./build_web.sh
-./start_server.sh
-open http://127.0.0.1:8080/
-```
-
-* `setup_web.sh` installs the tools required to build for web
-* `build_web.sh` compiles your code to wasm and puts it in the `docs/` folder (see below)
-* `start_server.sh` starts a local HTTP server so you can test before you publish
-* Open http://127.0.0.1:8080/ in a web browser to view
-
-The finished web app is found in the `docs/` folder (this is so that you can easily share it with [GitHub Pages](https://docs.github.com/en/free-pro-team@latest/github/working-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)). It consists of three files:
-
-* `index.html`: A few lines of HTML, CSS and JS that loads your app. **You need to edit this** (once) to replace `egui_template` with the name of your crate!
-* `your_crate_bg.wasm`: What the Rust code compiles to.
-* `your_crate.js`: Auto-generated binding between Rust and JS.
-
-You can test the template app at <https://emilk.github.io/egui_template/>.
-
-## Updating egui
-
-As of 2021, egui is in active development with frequent releases with breaking changes. [egui_template](https://github.com/emilk/egui_template/) will be updated in lock-step to always use the latest version of egui.
+### Compile Constructions:
+- On Linux you may need to first run `sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev`.
+- Clone the repo (`git clone https://github.com/SpikyPillow/autocrop`)
+- `cd autocrop`
+- run `cargo run --release`
